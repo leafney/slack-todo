@@ -19,9 +19,9 @@ import src.config as vars
 if __name__ =='__main__':
     td= todo.SlackTodo()
     c = vars.SLACK_CHANNEL
-    # td.get_channel_history_messages(channel=c)
+    td.get_channel_history_messages(channel=c)
 
-    td.post_message(channel=c,msg='你好呀')
+    # td.post_message(channel=c,msg='你好呀')
 
 
     
