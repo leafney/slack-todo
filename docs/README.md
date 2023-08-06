@@ -62,3 +62,29 @@ ssl_context.verify_mode = ssl.CERT_NONE
 WebClient(ssl=ssl_context)
 ```
 
+#### missing_scope
+
+需要为应用添加指定的 `scope` 权限。
+
+位置：`Your Apps` -- `OAuth&Permissions` -- `Scopes`
+
+- `conversations_history` -- `channels:history`
+- `chat_postMessage` -- `chat:write`
+- `reactions_add` -- `reactions:write`
+
+
+----
+
+### emoji 表情管理
+
+#### 消息项
+
+- `` 🏅 运动奖牌 -- 不重要且不紧急
+- `third_place_medal` 🥉 铜牌 -- 紧急不重要
+- `` 🥈 银牌 -- 重要不紧急
+- `first_place_medal`    金牌 -- 重要且紧急
+- `trophy` 🏆 奖杯 -- 表示当前项已完成
+- `+1` 👍🏻 点赞 -- 表示子任务已完成
+- `tada` 🎉 礼花 -- 表示当前项已被记录到数据库中
+- `wastebasket` 垃圾桶 -- 表示当前项可以被移除
+
