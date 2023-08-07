@@ -17,6 +17,8 @@ import ssl
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
+from .utils import utils as tools
+
 from loguru import logger
 import config as vars
 import sys
@@ -106,18 +108,19 @@ class SlackTodo:
             #     f.write(data)
             
             # # 解析历史消息
-            res= self.parse_channel_history_messages(data=result.data,isAll=isAll)
-            data= json.dumps(res)
-            with open('tmp5.json','w') as f:
-                f.write(data)
+            res = self._parse_channel_history_messages(data=result.data,channel=channel,isAll=isAll)
+            # data= json.dumps(res)
+            # with open('tmp5.json','w') as f:
+            #     f.write(data)
             
-
+            # 保存为markdown
+            self.save_history_markdown(res)
 
         except SlackApiError as e:
             logger.error(e)
 
 
-    def parse_channel_history_messages(self,data,isAll:bool=True):
+    def _parse_channel_history_messages(self,channel,data,isAll:bool=True):
         """
         解析频道历史消息
         """
@@ -142,19 +145,30 @@ class SlackTodo:
                         is_bot=True
                         m_msg_id=''
                 
+                logger.info(f'解析到内容 【{m_text}】')
+
                 item['is_bot']=is_bot
                 item['msg_id']=m_msg_id
                 item['type']=m_type
                 item['text'] =m_text
                 item['user']=m.get('user','')
-                item['ts']=m.get('ts','')
-                item['reply_count']=m.get('reply_count',0)
+                m_ts=m.get('ts','')
+                m_reply_count=m.get('reply_count',0)
+                item['ts']=m_ts
+                item['reply_count']=m_reply_count
                 item['reactions']=list(map(lambda x:x.get('name',''),m.get('reactions',[])))
                 item['files']=list(map(lambda f:{"id":f['id'],"title":f['title'],"size":f['size'],"url_download":f['url_private_download'],"url_preview":f['permalink']},m.get('files',[])))
                 item['team']=m.get('team','')
-                result.append(item)
-
+                
                 # 获取包含的评论列表
+                m_reply_list=[]
+                if m_reply_count>0:
+                    logger.debug(f'包含 【{m_reply_count}】条回复，开始获取')
+                    m_reply_list= self.get_message_item_replies(channel=channel,ts=m_ts,onlyReply=True)
+                
+                item['reply_list']=m_reply_list
+                result.append(item)
+                tools.slp_rand_float(min=0.6,max=2.0)
 
         return result
 
@@ -169,12 +183,13 @@ class SlackTodo:
             include_all_metadata=True,
         )
         res = resp.data
-        self._show_json(res)
+        # self._show_json(res)
 
-        result = self.parse_messge_item_replies(data=resp.data,onlyReply=onlyReply)
-        self._show_json(result)
+        result = self._parse_messge_item_replies(data=resp.data,onlyReply=onlyReply)
+        # self._show_json(result)
+        return result
 
-    def parse_messge_item_replies(self,data,onlyReply:bool=False):
+    def _parse_messge_item_replies(self,data,onlyReply:bool=False):
         """
         解析消息项的回复列表
         """
@@ -187,16 +202,19 @@ class SlackTodo:
                 item={}
                 is_reply=False
                 m_parent = m.get('parent_user_id')
-                if m_parent:
-                    if onlyReply:
+                if onlyReply:
+                    if not m_parent:
                         continue
                     else:
                         is_reply=True
 
+                m_text=m.get('text','')
+                logger.info(f'包含的回复内容 【{m_text}】')
+
                 item['is_reply']=is_reply
                 item['msg_id']=m.get('client_msg_id','')
                 item['type']=m.get('type','')
-                item['text']=m.get('text','')
+                item['text']=m_text
                 item['user']=m.get('user','')
                 item['ts']=m.get('ts','')
                 item['team']=m.get('team','')
@@ -244,4 +262,27 @@ class SlackTodo:
         res = resp.data
         self._show_json(res)
 
-    
+    def save_history_markdown(self,data):
+        """
+        将历史消息数据保存为markdown
+        """
+
+        result = []
+        for x in data:
+            x_text = x.get('text')
+            x_files=x.get('files')
+            info = f'- {x_text}'
+            for m in x_files:
+                m_title = m.get('title')
+                m_url = m.get('url_download')
+                info+=f" [{m_title}]({m_url})"
+            result.append(info)
+            for y in x.get('reply_list',[]):
+                y_text=y.get('text','')
+                result.append(f'  - {y_text}')
+        
+        logger.info('保存到markdown文件中')
+        # data= json.dumps(result)
+        with open('tmp9.md','w') as f:
+            for line in result:
+                f.write(f"{line}\n")
