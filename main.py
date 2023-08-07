@@ -28,9 +28,9 @@ if __name__ =='__main__':
 
     # td.msg_add_emoji(channel=c,ts='1691052332.745439',emoji='thumbsup')
 
-    # td.get_message_item_replies(channel=c,ts='1686187607.717839',onlyReply=False)
+    td.get_message_item_replies(channel=c,ts='1691286396.013489',onlyReply=False)
 
     # td.init_database()
     
-    td.save_history_database(channel=c,isAll=False,onlyReply=True)
+    # td.save_history_database(channel=c,isAll=False,onlyReply=True)
     

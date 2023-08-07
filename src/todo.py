@@ -193,10 +193,10 @@ class SlackTodo:
             include_all_metadata=True,
         )
         res = resp.data
-        # self._show_json(res)
+        self._show_json(res)
 
         result = self._parse_messge_item_replies(data=resp.data,onlyReply=onlyReply)
-        self._show_json(result)
+        # self._show_json(result)
         return result
 
     def _parse_messge_item_replies(self,data,onlyReply:bool=False):
