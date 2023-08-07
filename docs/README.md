@@ -72,6 +72,15 @@ WebClient(ssl=ssl_context)
 - `chat_postMessage` -- `chat:write`
 - `reactions_add` -- `reactions:write`
 
+#### Getting error EOF occurred in violation of protocol (_ssl.c:1123) slack-app
+
+
+##### 解决
+
+代理问题
+
+- [Getting error EOF occurred in violation of protocol (_ssl.c:1123) slack-app · Issue #227 · slackapi/bolt-python](https://github.com/slackapi/bolt-python/issues/227) 
+
 
 ----
 

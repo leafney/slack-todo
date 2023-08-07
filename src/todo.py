@@ -21,6 +21,8 @@ from .utils import utils as tools
 
 from loguru import logger
 import config as vars
+from model import TODO,Files 
+
 import sys
 import json
 
@@ -88,7 +90,7 @@ class SlackTodo:
         res = resp.data
         self._show_json(res)
 
-    def get_channel_history_messages(self,channel,isAll:bool=True):
+    def get_channel_history_messages(self,channel,isAll:bool=True,onlyReply=True):
         """
         获取频道历史消息
         """
@@ -108,19 +110,21 @@ class SlackTodo:
             #     f.write(data)
             
             # # 解析历史消息
-            res = self._parse_channel_history_messages(data=result.data,channel=channel,isAll=isAll)
+            res = self._parse_channel_history_messages(data=result.data,channel=channel,isAll=isAll,onlyReply=onlyReply)
             # data= json.dumps(res)
             # with open('tmp5.json','w') as f:
             #     f.write(data)
             
             # 保存为markdown
-            self.save_history_markdown(res)
+            # self.save_history_markdown(res)
+
+            return res
 
         except SlackApiError as e:
             logger.error(e)
 
 
-    def _parse_channel_history_messages(self,channel,data,isAll:bool=True):
+    def _parse_channel_history_messages(self,channel,data,isAll:bool=True,onlyReply:bool=False):
         """
         解析频道历史消息
         """
@@ -129,7 +133,13 @@ class SlackTodo:
         ok=data.get('ok')
         if ok:
             msg_list = data.get('messages',[])
+            i = 0
             for m in msg_list:
+                # 用于测试
+                # i+=1
+                # if i>10:
+                #     break
+
                 item = {}
                 m_type = m.get('type','')
                 m_text= m.get('text','')
@@ -164,7 +174,7 @@ class SlackTodo:
                 m_reply_list=[]
                 if m_reply_count>0:
                     logger.debug(f'包含 【{m_reply_count}】条回复，开始获取')
-                    m_reply_list= self.get_message_item_replies(channel=channel,ts=m_ts,onlyReply=True)
+                    m_reply_list= self.get_message_item_replies(channel=channel,ts=m_ts,onlyReply=onlyReply)
                 
                 item['reply_list']=m_reply_list
                 result.append(item)
@@ -186,7 +196,7 @@ class SlackTodo:
         # self._show_json(res)
 
         result = self._parse_messge_item_replies(data=resp.data,onlyReply=onlyReply)
-        # self._show_json(result)
+        self._show_json(result)
         return result
 
     def _parse_messge_item_replies(self,data,onlyReply:bool=False):
@@ -286,3 +296,111 @@ class SlackTodo:
         with open('tmp9.md','w') as f:
             for line in result:
                 f.write(f"{line}\n")
+
+    def init_database(self):
+        """
+        初始化数据库
+        """
+        TODO.create_table()
+        Files.create_table()
+        logger.info(f'数据库初始化完成')
+
+
+    def save_history_database(self,channel,isAll:bool=True,onlyReply=True):
+        """
+        将将历史消息数据保存到数据库
+        """
+
+        data = self.get_channel_history_messages(channel=channel,isAll=isAll,onlyReply=onlyReply)
+
+        for x in data:
+            # logger.debug(f'数据 {json.dumps(x)}')
+
+            x_ts= x.get('ts')
+            x_text = x.get('text')
+            x_files=x.get('files')
+
+            # 判断当前项是否已经处理过
+            ext_count = TODO.select().where(TODO.ts==x_ts).count()
+            if ext_count > 0:
+                logger.info(f'数据 【{x_text}】 已被记录')
+                continue
+
+            x_unix=int(x_ts.split('.',1)[0])
+            
+            new_id= TODO.insert(
+                        parent_id=0,
+                        ts=x.get('ts',''),
+                        msg_id=x.get('msg_id',''),
+                        user=x.get('user',''),
+                        team=x.get('team',''),
+                        text=x.get('text',''),
+                        reply_count=x.get('reply_count',0),
+                        reactions=','.join(x.get('reactions',[])),
+                        has_file = len(x.get('files',[]))>0,
+                        create_unix=x_unix,
+                        ).execute()
+
+            if new_id<=0:
+                logger.error(f'数据 【{x_text}】保存失败')
+                continue
+
+            # 判断是否包含文件
+            for m in x_files:
+                m_title=m.get('title')
+                Files.create(
+                    td_id=new_id,
+                    file_id=m.get('id'),
+                    title=m_title,
+                    size=m.get('size'),
+                    url_download=m.get('url_download'),
+                    url_preview=m.get('url_preview'),
+                )
+                logger.info(f'文件 【{m_title}】记录成功')
+
+            # 判断是否包含子项
+            for y in x.get('reply_list',[]):
+                # logger.debug(f'子项 {json.dumps(x)}')
+
+                y_ts=y.get('ts')
+                y_text=y.get('text')
+
+                y_unix=int(y_ts.split('.',1)[0])
+
+                child_id= TODO.insert(
+                    parent_id=new_id,
+                    ts=y_ts,
+                    msg_id=y.get('msg_id',''),
+                    user=y.get('user',''),
+                    team=y.get('team',''),
+                    text=y_text,
+                    reactions=','.join(y.get('reactions',[])),
+                    has_file = len(y.get('files'))>0,
+                    create_unix=y_unix,
+                ).execute()
+
+                if child_id>0:
+                    logger.info(f'子项 【{y_text}】记录成功')
+
+                    y_files = y.get('files',[])
+                    for z in y_files:
+                        z_title=z.get('title','')
+                        Files.create(
+                            td_id=child_id,
+                            file_id=z.get('id',''),
+                            title=z_title,
+                            size=z.get('size'),
+                            url_download=z.get('url_download'),
+                            url_preview=z.get('url_preview'),
+                        )
+                        logger.info(f'文件信息 【{z_title}】记录成功')
+                else:
+                    logger.error(f'子项 【{y_text}】记录失败')
+                
+                
+
+
+            
+
+            
+
