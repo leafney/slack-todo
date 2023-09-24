@@ -10,34 +10,34 @@ package main
 
 import (
 	"github.com/leafney/rose"
+	"github.com/leafney/slack-togo/config"
+	"github.com/leafney/slack-togo/global"
+	"github.com/leafney/slack-togo/model"
 	"github.com/slack-go/slack"
 	"log"
 )
 
-const (
-	// bot token
-	TOKEN = "xoxb-"
-	// user token
-	//TOKEN     = "xoxp-"
-	CHANNELID = ""
-)
-
 func main() {
-	api := slack.New(TOKEN)
 
-	ConversationHistory(api)
+	config.InitCofnig()
+
+	cfg := global.GConfig
+
+	api := slack.New(cfg.BotToken)
+
+	ConversationHistory(api, cfg)
 
 	//PostMessage(api)
 
 }
 
 // 历史消息记录
-func ConversationHistory(api *slack.Client) {
+func ConversationHistory(api *slack.Client, cfg *model.Slack) {
 	// 获取历史消息记录
 	result, err := api.GetConversationHistory(&slack.GetConversationHistoryParameters{
 		IncludeAllMetadata: true,
 		Limit:              1000,
-		ChannelID:          CHANNELID,
+		ChannelID:          cfg.ChannelID,
 	})
 	if err != nil {
 		log.Println(err)
@@ -54,13 +54,13 @@ func ConversationHistory(api *slack.Client) {
 }
 
 // 二级内容列表
-func ConversationReplies(api *slack.Client) {
+func ConversationReplies(api *slack.Client, cfg *model.Slack) {
 	//	获取消息项的回复列表
 	//- [conversations.replies method | Slack](https://api.slack.com/methods/conversations.replies)
 	result, _, _, _ := api.GetConversationReplies(&slack.GetConversationRepliesParameters{
 		IncludeAllMetadata: true,
 		Timestamp:          "1687698556.243869",
-		ChannelID:          CHANNELID,
+		ChannelID:          cfg.ChannelID,
 	})
 
 	data := rose.JsonMarshalStr(result)
@@ -68,10 +68,10 @@ func ConversationReplies(api *slack.Client) {
 }
 
 // 发送消息
-func PostMessage(api *slack.Client) {
+func PostMessage(api *slack.Client, cfg *model.Slack) {
 	//	发送消息
 	resCid, resTs, _ := api.PostMessage(
-		CHANNELID,
+		cfg.ChannelID,
 		slack.MsgOptionText("Hello world as User 444", false),
 		//slack.MsgOptionAsUser(true),
 		//slack.MsgOptionUser("U0563221SBY"),
