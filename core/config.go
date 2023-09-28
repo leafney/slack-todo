@@ -6,7 +6,7 @@
  * @Description:
  */
 
-package config
+package core
 
 import (
 	"github.com/knadh/koanf/parsers/yaml"

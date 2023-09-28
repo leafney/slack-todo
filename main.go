@@ -10,7 +10,7 @@ package main
 
 import (
 	"github.com/leafney/rose"
-	"github.com/leafney/slack-togo/config"
+	"github.com/leafney/slack-togo/core"
 	"github.com/leafney/slack-togo/global"
 	"github.com/leafney/slack-togo/model"
 	"github.com/slack-go/slack"
@@ -19,7 +19,7 @@ import (
 
 func main() {
 
-	config.InitCofnig()
+	core.InitCofnig()
 
 	cfg := global.GConfig
 
