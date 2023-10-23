@@ -12,6 +12,7 @@ type Slack struct {
 	ChannelID string `koanf:"channel_id"`
 	BotToken  string `koanf:"bot_token"`
 	UserToken string `koanf:"user_token"`
+	UserID    string `koanf:"user_id"`
 	Mysql     Mysql  `koanf:"mysql"`
 	Redis     Redis  `koanf:"redis"`
 }

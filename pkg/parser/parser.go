@@ -10,10 +10,14 @@ package parser
 
 import (
 	"github.com/leafney/rose"
+	"github.com/leafney/slack-togo/common/vars"
 	"github.com/leafney/slack-togo/model"
+	"github.com/leafney/slack-togo/pkg/utils"
 	"github.com/slack-go/slack"
+	"log"
 )
 
+// 获取历史消息列表
 func ParseConversationHistory(data *slack.GetConversationHistoryResponse) []*model.History {
 	result := make([]*model.History, 0)
 
@@ -23,10 +27,21 @@ func ParseConversationHistory(data *slack.GetConversationHistoryResponse) []*mod
 		for _, m := range messages {
 			mId := m.ClientMsgID
 			mBot := m.BotID
-			isBot := false
+			//isBot := false
+			//if rose.StrIsEmpty(mId) && !rose.StrIsEmpty(mBot) {
+			//	isBot = true
+			//}
+
+			senderType := vars.SenderTypeUser
 			if rose.StrIsEmpty(mId) && !rose.StrIsEmpty(mBot) {
-				isBot = true
+				senderType = vars.SenderTypeAsUser
+
+				subType := m.SubType
+				if rose.StrEqualFull(subType, vars.TYPE_BOT_ADD) {
+					senderType = vars.SenderTypeBot
+				}
 			}
+
 			// emoji
 			emojiList := make([]string, 0)
 			for _, mr := range m.Reactions {
@@ -45,19 +60,35 @@ func ParseConversationHistory(data *slack.GetConversationHistoryResponse) []*mod
 				})
 			}
 
+			// create ts
+			createTs := rose.StrToInt64(utils.StrAnySplitFirst(m.Timestamp, "."))
+
+			// edit ts
+			editTs := int64(0)
+			if m.Edited != nil {
+				tmpETS := m.Edited.Timestamp
+				log.Println(tmpETS)
+				editTs = rose.StrToInt64(utils.StrAnySplitFirst(tmpETS, "."))
+			}
+
 			// second items
 
 			item := &model.History{
-				MsgId:      mId,
-				IsBot:      isBot,
-				MType:      m.Type,
-				Text:       m.Text,
-				User:       m.User,
-				Team:       m.Team,
-				Ts:         m.Timestamp,
-				ReplyCount: m.ReplyCount,
-				Reactions:  emojiList,
-				Files:      fileList,
+				MsgId: mId,
+				//IsBot:       isBot,
+				SType:       senderType,
+				MType:       m.Type,
+				Text:        m.Text,
+				User:        m.User,
+				Team:        m.Team,
+				Ts:          m.Timestamp,
+				ThreadTs:    m.ThreadTimestamp,
+				CreateTs:    createTs,
+				EditTs:      editTs,
+				ReplyCount:  m.ReplyCount,
+				Reactions:   emojiList,
+				Files:       fileList,
+				LatestReply: m.LatestReply,
 			}
 			result = append(result, item)
 		}
@@ -74,15 +105,27 @@ func ParseConversationReplies(data []slack.Message, onlyReply bool) []*model.His
 		// reply item
 		isReply := false
 		mParentId := m.ParentUserId
-		if onlyReply {
-			if rose.StrIsEmpty(mParentId) {
-				continue
-			} else {
-				isReply = true
-			}
+
+		if !rose.StrIsEmpty(mParentId) {
+			isReply = true
+		}
+
+		if onlyReply && !isReply {
+			continue
 		}
 
 		mId := m.ClientMsgID
+		mBot := m.BotID
+
+		senderType := vars.SenderTypeUser
+		if rose.StrIsEmpty(mId) && !rose.StrIsEmpty(mBot) {
+			senderType = vars.SenderTypeAsUser
+
+			subType := m.SubType
+			if rose.StrEqualFull(subType, vars.TYPE_BOT_ADD) {
+				senderType = vars.SenderTypeBot
+			}
+		}
 
 		// emoji
 		emojiList := make([]string, 0)
@@ -102,16 +145,32 @@ func ParseConversationReplies(data []slack.Message, onlyReply bool) []*model.His
 			})
 		}
 
+		// create ts
+		createTs := rose.StrToInt64(utils.StrAnySplitFirst(m.Timestamp, "."))
+
+		// edit ts
+		editTs := int64(0)
+		if m.Edited != nil {
+			tmpETS := m.Edited.Timestamp
+			log.Println(tmpETS)
+			editTs = rose.StrToInt64(utils.StrAnySplitFirst(tmpETS, "."))
+		}
+
 		item := &model.History{
-			IsReply:   isReply,
-			Text:      m.Text,
-			MsgId:     mId,
-			MType:     m.Type,
-			User:      m.User,
-			Team:      m.Team,
-			Ts:        m.Timestamp,
-			Reactions: emojiList,
-			Files:     fileList,
+			IsReply:     isReply,
+			MsgId:       mId,
+			SType:       senderType,
+			MType:       m.Type,
+			Text:        m.Text,
+			User:        m.User,
+			Team:        m.Team,
+			Ts:          m.Timestamp,
+			ThreadTs:    m.ThreadTimestamp,
+			CreateTs:    createTs,
+			EditTs:      editTs,
+			Reactions:   emojiList,
+			Files:       fileList,
+			LatestReply: m.LatestReply,
 		}
 		result = append(result, item)
 	}
