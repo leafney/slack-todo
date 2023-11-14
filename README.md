@@ -1,1 +1,3 @@
-## slack-todo
+# slack-todo
+
+To-do management through slack channels
